@@ -15,9 +15,17 @@ engine = create_engine("postgresql+psycopg2://postgres:root@localhost/amb?client
 pdf = pd.read_sql('select * from datas', engine)
 
 df = spark.createDataFrame(pdf)
-#print(df.schema)
+
 #df.show()
 
-df.groupBy("t_date").count().sort("t_date").show()
+counterDf = df.groupBy("t_date").count().sort("t_date") #считаем кол-во случаев в сутки
+counterDf.show()
+
+#convert to Pandas df
+pdDf = counterDf.toPandas()
+print(pdDf, type(pdDf))
+
+#Plot the Dataframe
+pdDf.plot(x ='t_date', y='count', kind = 'line')
 
 plt.show()
