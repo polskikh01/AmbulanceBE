@@ -21,10 +21,10 @@ t_age = 0  # возраст V
 t_who = ''  # кто вызвал V | больной - 0; родственник - 1; МЧС - 2; очевидец - 3; соседи - 4; ССМП - 5
 t_from = ''  # адрес
 t_reason = ''  # повод
-t_type = ''  # вызов (первичный/попутный)
-t_state = ''  # вид
+t_type = ''  # вызов (первичный - 0 /попутный - 1/ повторный - 2) V
+t_state = ''  # вид (несчастный - 0/внезапное - 1 /внезапное - 2) V
 t_diag = ''  # диагноз
-t_result = ''  # результат
+t_result = ''  # результат (помощь на месте - 0 ; отказ - 1 ; смерть до приезда - 2 ; в присутствии - 3 ; здоров - 4 ; в больницу - 5 ; до прибытия - 6 ; травмпункт - 7)
 t_to = ''  # доставлен
 t_station = ''  # подстанция  V
 t_time1 = 0  # время принятия V
@@ -109,5 +109,58 @@ for i in range(worksheet.nrows):
             t_number = worksheet.cell(i, j + 1).value
         elif worksheet.cell(i, j).ctype == 1 and "Подстанция:" in worksheet.cell(i, j).value:  # подстанция
             t_station = worksheet.cell(i, j + 5).value
-        elif worksheet.cell(i, j).ctype == 1 and "Вызов:" in worksheet.cell(i, j).value:  # какой вызов
-            t_type = worksheet.cell(i, j + 2).value
+        elif worksheet.cell(i, j).ctype == 1 and "Вызов:" in worksheet.cell(i, j).value:  # тип вызова
+            if 'Первичный' in worksheet.cell(i, j + 2).value:
+                t_type = 0
+            elif 'Повторный' in worksheet.cell(i, j + 2).value:
+                t_type = 1
+            elif 'Попутный' in worksheet.cell(i, j + 2).value:
+                t_type = 2
+            else:
+                t_type = 0
+        elif worksheet.cell(i, j).ctype == 1 and "Вид:" in worksheet.cell(i, j).value:  # состояние
+            if 'несчастный' in worksheet.cell(i, j + 3).value:
+                t_state = 0
+            elif 'неотложное' in worksheet.cell(i, j + 3).value:
+                t_state = 1
+            else :
+                t_state = 2
+        elif worksheet.cell(i, j).ctype == 1 and "Результат:" in worksheet.cell(i, j).value:  # Результат
+            if 'на месте' in worksheet.cell(i, j + 2).value:
+                t_result = 0
+            elif 'отказ' in worksheet.cell(i, j + 2).value:
+                t_result = 1
+            elif 'до приезда' in worksheet.cell(i, j + 2).value:
+                t_result = 2
+            elif 'в присутствии' in worksheet.cell(i, j + 2).value:
+                t_result = 3
+            elif 'здоров' in worksheet.cell(i, j + 2).value:
+                t_result = 4
+            elif 'в больницу' in worksheet.cell(i, j + 2).value:
+                t_result = 5
+            elif 'до прибытия' in worksheet.cell(i, j + 2).value:
+                t_result = 6
+            elif 'травмпункт' in worksheet.cell(i, j + 2).value:
+                t_result = 7
+            else:
+                t_result = 0
+        elif worksheet.cell(i, j).ctype == 1 and "Адрес:" in worksheet.cell(i, j).value:  # адрес
+            if worksheet.cell(i, j + 1).value == '':
+                t_from = '-'
+            else:
+                t_from = worksheet.cell(i, j + 1).value
+        elif worksheet.cell(i, j).ctype == 1 and "Повод:" in worksheet.cell(i, j).value:  # повод
+            if worksheet.cell(i, j + 1).value == '':
+                t_reason = '-'
+            else:
+                t_reason = worksheet.cell(i, j + 1).value
+        elif worksheet.cell(i, j).ctype == 1 and "Диагноз:" in worksheet.cell(i, j).value:  # диагноз
+            if worksheet.cell(i, j + 1).value == '':
+                t_diag = '-'
+            else:
+                t_diag = worksheet.cell(i, j + 1).value
+        elif worksheet.cell(i, j).ctype == 1 and "Доставлен:" in worksheet.cell(i, j).value:  # доставлен в
+            if worksheet.cell(i, j + 1).value == '':
+                t_to = '-'
+            else:
+                t_to = worksheet.cell(i, j + 1).value
