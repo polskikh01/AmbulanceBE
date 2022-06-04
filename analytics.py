@@ -1,19 +1,23 @@
 import psycopg2
-import matplotlib.pyplot as plt
 import pandas as pd
+from pyspark import SQLContext
+from pyspark.sql import SparkSession
+from sqlalchemy import create_engine
+import matplotlib.pyplot as plt
 
-conn = psycopg2.connect(
-    host="localhost",
-    database="amb",
-    user="postgres",
-    password="root")
+appName = "PySpark PostgreSQL Example - via psycopg2"
+master = "local"
 
-sql = "select * from datas;"
-df = pd.read_sql_query(sql, conn)
+spark = SparkSession.builder.master(master).appName(appName).getOrCreate()
+sql_context = SQLContext(spark)
 
-if conn is not None:
-    conn.close()
-    print('Database connection closed.')
+engine = create_engine("postgresql+psycopg2://postgres:root@localhost/amb?client_encoding=utf8")
+pdf = pd.read_sql('select * from datas', engine)
 
-df.plot(kind="bar", x="t_age", y="t_who")
-#plt.show()
+df = spark.createDataFrame(pdf)
+#print(df.schema)
+#df.show()
+
+df.groupBy("t_date").count().sort("t_date").show()
+
+plt.show()

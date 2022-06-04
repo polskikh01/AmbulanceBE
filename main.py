@@ -31,6 +31,15 @@ t_time1 = 0  # время принятия V
 t_time2 = 0  # время приезда V
 
 
+"""
+Городская клиническая больница - ГКБ
+Городская поликлиника - ГП
+Городская больница - ГБ
+Детская городская больница - ДГБ
+Детская городская поликлиника - ДГП
+Детская городская клиническая больница - ДГКБ
+"""
+
 def clearRow():
     t_date = None  # дата
     t_number = 0  # номер
@@ -60,7 +69,7 @@ conn = psycopg2.connect(
 
 """ clearing db """
 cursor = conn.cursor()
-cursor.execute("truncate table datas")
+cursor.execute("TRUNCATE TABLE datas RESTART IDENTITY;")
 conn.commit()
 cursor.close()
 """ ----------------- """
@@ -72,7 +81,7 @@ for file in dataFolders:
     for i in range(worksheet.nrows):
         for j in range(20):
             if worksheet.cell(i, j).ctype == 1 and "Испол." in worksheet.cell(i, j).value:
-                printRow()
+                #printRow()
 
                 """ inserting into db """
                 cursor = conn.cursor()
@@ -121,7 +130,10 @@ for file in dataFolders:
             elif worksheet.cell(i, j).ctype == 1 and "Номер:" in worksheet.cell(i, j).value: # номер вызова
                 t_number = worksheet.cell(i, j + 1).value
             elif worksheet.cell(i, j).ctype == 1 and "Подстанция:" in worksheet.cell(i, j).value:  # подстанция
-                t_station = worksheet.cell(i, j + 5).value
+                if 'ПСМП' in worksheet.cell(i, j + 5).value:
+                    t_station = int(re.findall('[0-9]+', worksheet.cell(i, j + 5).value)[0])
+                else:
+                    t_station = 0
             elif worksheet.cell(i, j).ctype == 1 and "Вызов:" in worksheet.cell(i, j).value:  # тип вызова
                 if 'Первичный' in worksheet.cell(i, j + 2).value:
                     t_type = 0
@@ -161,12 +173,18 @@ for file in dataFolders:
                 if worksheet.cell(i, j + 1).value == '':
                     t_from = '-'
                 else:
-                    t_from = worksheet.cell(i, j + 1).value
+                    if '***' in worksheet.cell(i, j + 1).value and 'кв' in worksheet.cell(i, j + 1).value or 'к***' in worksheet.cell(i, j + 1).value:
+                        t_from = ','.join(worksheet.cell(i, j + 1).value.split(',')[:-1])
+                    else:
+                        t_from = worksheet.cell(i, j + 1).value
             elif worksheet.cell(i, j).ctype == 1 and "Повод:" in worksheet.cell(i, j).value:  # повод
                 if worksheet.cell(i, j + 1).value == '':
                     t_reason = '-'
                 else:
-                    t_reason = worksheet.cell(i, j + 1).value
+                    if 'Температура' in worksheet.cell(i, j + 1).value:
+                        t_reason = worksheet.cell(i, j + 1).value.replace("Температура", "Темп")
+                    else:
+                        t_reason = worksheet.cell(i, j + 1).value
             elif worksheet.cell(i, j).ctype == 1 and "Диагноз:" in worksheet.cell(i, j).value:  # диагноз
                 if worksheet.cell(i, j + 1).value == '':
                     t_diag = '-'
@@ -176,7 +194,20 @@ for file in dataFolders:
                 if worksheet.cell(i, j + 1).value == '':
                     t_to = '-'
                 else:
-                    t_to = worksheet.cell(i, j + 1).value
+                    if 'Городская клиническая больница' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Городская клиническая больница", "ГКБ")
+                    elif 'Городская поликлиника' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Городская поликлиника", "ГП")
+                    elif 'Городская больница' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Городская больница", "ГБ")
+                    elif 'Детская городская больница' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Детская городская больница", "ДГБ")
+                    elif 'Детская городская поликлиника' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Детская городская поликлиника", "ДГП")
+                    elif 'Детская городская клиническая больница' in worksheet.cell(i, j + 1).value:
+                        t_to = worksheet.cell(i, j + 1).value.replace("Детская городская клиническая больница", "ДГКБ")
+                    else:
+                        t_to = worksheet.cell(i, j + 1).value
 
 if conn is not None:
     conn.close()
