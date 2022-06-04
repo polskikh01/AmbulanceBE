@@ -2,7 +2,7 @@ import datetime
 import re
 import psycopg2, xlrd
 
-datas = ['/Users/jklyuev/Desktop/BDA/2020/01-2020.xls',
+dataFolders = ['/Users/jklyuev/Desktop/BDA/2020/01-2020.xls',
          '/Users/jklyuev/Desktop/BDA/2020/02-2020.xls',
          '/Users/jklyuev/Desktop/BDA/2020/03-2020.xls',
          '/Users/jklyuev/Desktop/BDA/2020/04-2020.xls',
@@ -32,7 +32,7 @@ t_time2 = 0  # время приезда V
 
 
 def clearRow():
-    t_date = 0  # дата
+    t_date = None  # дата
     t_number = 0  # номер
     t_age = 0  # возраст
     t_who = ''  # кто вызвал
@@ -44,14 +44,13 @@ def clearRow():
     t_result = ''  # результат
     t_to = ''  # доставлен
     t_station = ''  # подстанция
-    t_time1 = 0  # время принятия
-    t_time2 = 0  # время приезда
+    t_time1 = None  # время принятия
+    t_time2 = None  # время приезда
 
 
 def printRow():
     print(t_date, t_number, t_age, t_who, t_from, t_reason, t_type, t_state, t_diag, t_result, t_to, t_station, t_time1,
           t_time2)
-
 
 conn = psycopg2.connect(
     host="localhost",
@@ -59,108 +58,126 @@ conn = psycopg2.connect(
     user="postgres",
     password="root")
 
+""" clearing db """
+cursor = conn.cursor()
+cursor.execute("truncate table datas")
+conn.commit()
+cursor.close()
+""" ----------------- """
+
+for file in dataFolders:
+    workbook = xlrd.open_workbook(file)
+    worksheet = workbook.sheet_by_index(0)
+
+    for i in range(worksheet.nrows):
+        for j in range(20):
+            if worksheet.cell(i, j).ctype == 1 and "Испол." in worksheet.cell(i, j).value:
+                printRow()
+
+                """ inserting into db """
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO datas(t_date, t_number, t_age, t_who, t_from, t_reason, t_type, t_state, t_diag, t_result, t_to, t_station, t_time1, t_time2) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                               (t_date, t_number, t_age, t_who, t_from, t_reason, t_type, t_state, t_diag, t_result, t_to, t_station, t_time1, t_time2))
+                conn.commit()
+                cursor.close()
+                """ ----------------- """
+
+                clearRow()
+            elif worksheet.cell(i, j).ctype == 3: #дата, время выезда и прибытия
+                ms_date_number = worksheet.cell(i, j).value
+                year, month, day, hour, minute, second = xlrd.xldate_as_tuple(ms_date_number, workbook.datemode)
+                py_date = datetime.datetime(year, month, day, hour, minute, second)
+                if py_date.year == 1970:
+                    if t_time1 == None:
+                        t_time1 = py_date
+                        t_time2 = None
+                    else:
+                        t_time2 = py_date
+                elif py_date.year == 2020 or py_date.year == 2021 or py_date.year == 2022:
+                    t_date = py_date
+                    t_time1 = None
+                    t_time2 = None
+            elif worksheet.cell(i, j).ctype == 1 and "Возраст:" in worksheet.cell(i, j).value: #возраст и кто вызвал
+
+                if 'лет' in worksheet.cell(i, j + 2).value:
+                    t_age = int(re.findall('[0-9]+', worksheet.cell(i, j + 2).value)[0])
+                elif 'мес' in worksheet.cell(i, j + 2).value:
+                    t_age = int(re.findall('[0-9]+', worksheet.cell(i, j + 2).value)[0])/100
+                else:
+                    t_age = 0
+
+                if 'родственник' in worksheet.cell(i, j + 5).value:
+                    t_who = 1
+                elif 'МЧС' in worksheet.cell(i, j + 5).value:
+                    t_who = 2
+                elif 'очевидец' in worksheet.cell(i, j + 5).value:
+                    t_who = 3
+                elif 'сосед' in worksheet.cell(i, j + 5).value:
+                    t_who = 4
+                elif 'ССМП' in worksheet.cell(i, j + 5).value:
+                    t_who = 5
+                else:
+                    t_who = 0
+            elif worksheet.cell(i, j).ctype == 1 and "Номер:" in worksheet.cell(i, j).value: # номер вызова
+                t_number = worksheet.cell(i, j + 1).value
+            elif worksheet.cell(i, j).ctype == 1 and "Подстанция:" in worksheet.cell(i, j).value:  # подстанция
+                t_station = worksheet.cell(i, j + 5).value
+            elif worksheet.cell(i, j).ctype == 1 and "Вызов:" in worksheet.cell(i, j).value:  # тип вызова
+                if 'Первичный' in worksheet.cell(i, j + 2).value:
+                    t_type = 0
+                elif 'Повторный' in worksheet.cell(i, j + 2).value:
+                    t_type = 1
+                elif 'Попутный' in worksheet.cell(i, j + 2).value:
+                    t_type = 2
+                else:
+                    t_type = 0
+            elif worksheet.cell(i, j).ctype == 1 and "Вид:" in worksheet.cell(i, j).value:  # состояние
+                if 'несчастный' in worksheet.cell(i, j + 3).value:
+                    t_state = 0
+                elif 'неотложное' in worksheet.cell(i, j + 3).value:
+                    t_state = 1
+                else :
+                    t_state = 2
+            elif worksheet.cell(i, j).ctype == 1 and "Результат:" in worksheet.cell(i, j).value:  # Результат
+                if 'на месте' in worksheet.cell(i, j + 2).value:
+                    t_result = 0
+                elif 'отказ' in worksheet.cell(i, j + 2).value:
+                    t_result = 1
+                elif 'до приезда' in worksheet.cell(i, j + 2).value:
+                    t_result = 2
+                elif 'в присутствии' in worksheet.cell(i, j + 2).value:
+                    t_result = 3
+                elif 'здоров' in worksheet.cell(i, j + 2).value:
+                    t_result = 4
+                elif 'в больницу' in worksheet.cell(i, j + 2).value:
+                    t_result = 5
+                elif 'до прибытия' in worksheet.cell(i, j + 2).value:
+                    t_result = 6
+                elif 'травмпункт' in worksheet.cell(i, j + 2).value:
+                    t_result = 7
+                else:
+                    t_result = 0
+            elif worksheet.cell(i, j).ctype == 1 and "Адрес:" in worksheet.cell(i, j).value:  # адрес
+                if worksheet.cell(i, j + 1).value == '':
+                    t_from = '-'
+                else:
+                    t_from = worksheet.cell(i, j + 1).value
+            elif worksheet.cell(i, j).ctype == 1 and "Повод:" in worksheet.cell(i, j).value:  # повод
+                if worksheet.cell(i, j + 1).value == '':
+                    t_reason = '-'
+                else:
+                    t_reason = worksheet.cell(i, j + 1).value
+            elif worksheet.cell(i, j).ctype == 1 and "Диагноз:" in worksheet.cell(i, j).value:  # диагноз
+                if worksheet.cell(i, j + 1).value == '':
+                    t_diag = '-'
+                else:
+                    t_diag = worksheet.cell(i, j + 1).value
+            elif worksheet.cell(i, j).ctype == 1 and "Доставлен:" in worksheet.cell(i, j).value:  # доставлен в
+                if worksheet.cell(i, j + 1).value == '':
+                    t_to = '-'
+                else:
+                    t_to = worksheet.cell(i, j + 1).value
+
 if conn is not None:
     conn.close()
     print('Database connection closed.')
-
-workbook = xlrd.open_workbook('/Users/jklyuev/Desktop/BDA/2020/01-2020.xls')
-worksheet = workbook.sheet_by_index(0)
-
-for i in range(worksheet.nrows):
-    for j in range(20):
-        if worksheet.cell(i, j).ctype == 1 and "Испол." in worksheet.cell(i, j).value:
-            printRow()
-            clearRow()
-        elif worksheet.cell(i, j).ctype == 3: #дата, время выезда и прибытия
-            ms_date_number = worksheet.cell(i, j).value
-            year, month, day, hour, minute, second = xlrd.xldate_as_tuple(ms_date_number, workbook.datemode)
-            py_date = datetime.datetime(year, month, day, hour, minute, second)
-            if py_date.year == 1970:
-                if t_time1 == 0:
-                    t_time1 = py_date
-                    t_time2 = 0
-                else:
-                    t_time2 = py_date
-            elif py_date.year == 2020 or py_date.year == 2021 or py_date.year == 2022:
-                t_date = py_date
-                t_time1 = 0
-                t_time2 = 0
-        elif worksheet.cell(i, j).ctype == 1 and "Возраст:" in worksheet.cell(i, j).value: #возраст и кто вызвал
-            t_age = worksheet.cell(i, j + 2).value
-
-            if 'лет' in worksheet.cell(i, j + 2).value:
-                t_age = int(re.findall('[0-9]+', worksheet.cell(i, j + 2).value)[0])
-            else:
-                t_age = int(re.findall('[0-9]+', worksheet.cell(i, j + 2).value)[0])/100
-
-            if 'родственник' in worksheet.cell(i, j + 5).value:
-                t_who = 1
-            elif 'МЧС' in worksheet.cell(i, j + 5).value:
-                t_who = 2
-            elif 'очевидец' in worksheet.cell(i, j + 5).value:
-                t_who = 3
-            elif 'сосед' in worksheet.cell(i, j + 5).value:
-                t_who = 4
-            elif 'ССМП' in worksheet.cell(i, j + 5).value:
-                t_who = 5
-            else:
-                t_who = 0
-        elif worksheet.cell(i, j).ctype == 1 and "Номер:" in worksheet.cell(i, j).value: # номер вызова
-            t_number = worksheet.cell(i, j + 1).value
-        elif worksheet.cell(i, j).ctype == 1 and "Подстанция:" in worksheet.cell(i, j).value:  # подстанция
-            t_station = worksheet.cell(i, j + 5).value
-        elif worksheet.cell(i, j).ctype == 1 and "Вызов:" in worksheet.cell(i, j).value:  # тип вызова
-            if 'Первичный' in worksheet.cell(i, j + 2).value:
-                t_type = 0
-            elif 'Повторный' in worksheet.cell(i, j + 2).value:
-                t_type = 1
-            elif 'Попутный' in worksheet.cell(i, j + 2).value:
-                t_type = 2
-            else:
-                t_type = 0
-        elif worksheet.cell(i, j).ctype == 1 and "Вид:" in worksheet.cell(i, j).value:  # состояние
-            if 'несчастный' in worksheet.cell(i, j + 3).value:
-                t_state = 0
-            elif 'неотложное' in worksheet.cell(i, j + 3).value:
-                t_state = 1
-            else :
-                t_state = 2
-        elif worksheet.cell(i, j).ctype == 1 and "Результат:" in worksheet.cell(i, j).value:  # Результат
-            if 'на месте' in worksheet.cell(i, j + 2).value:
-                t_result = 0
-            elif 'отказ' in worksheet.cell(i, j + 2).value:
-                t_result = 1
-            elif 'до приезда' in worksheet.cell(i, j + 2).value:
-                t_result = 2
-            elif 'в присутствии' in worksheet.cell(i, j + 2).value:
-                t_result = 3
-            elif 'здоров' in worksheet.cell(i, j + 2).value:
-                t_result = 4
-            elif 'в больницу' in worksheet.cell(i, j + 2).value:
-                t_result = 5
-            elif 'до прибытия' in worksheet.cell(i, j + 2).value:
-                t_result = 6
-            elif 'травмпункт' in worksheet.cell(i, j + 2).value:
-                t_result = 7
-            else:
-                t_result = 0
-        elif worksheet.cell(i, j).ctype == 1 and "Адрес:" in worksheet.cell(i, j).value:  # адрес
-            if worksheet.cell(i, j + 1).value == '':
-                t_from = '-'
-            else:
-                t_from = worksheet.cell(i, j + 1).value
-        elif worksheet.cell(i, j).ctype == 1 and "Повод:" in worksheet.cell(i, j).value:  # повод
-            if worksheet.cell(i, j + 1).value == '':
-                t_reason = '-'
-            else:
-                t_reason = worksheet.cell(i, j + 1).value
-        elif worksheet.cell(i, j).ctype == 1 and "Диагноз:" in worksheet.cell(i, j).value:  # диагноз
-            if worksheet.cell(i, j + 1).value == '':
-                t_diag = '-'
-            else:
-                t_diag = worksheet.cell(i, j + 1).value
-        elif worksheet.cell(i, j).ctype == 1 and "Доставлен:" in worksheet.cell(i, j).value:  # доставлен в
-            if worksheet.cell(i, j + 1).value == '':
-                t_to = '-'
-            else:
-                t_to = worksheet.cell(i, j + 1).value
