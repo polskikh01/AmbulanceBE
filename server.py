@@ -6,7 +6,8 @@ hostName = "localhost"
 serverPort = 8080
 regions = ['Автозаводский р-н',
            'Приокский р-н',
-           'Ленинский р-н']
+           'Ленинский р-н',
+           'Московский р-н']
 
 
 class MyServer(BaseHTTPRequestHandler):
