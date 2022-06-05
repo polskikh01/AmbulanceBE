@@ -20,8 +20,13 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
         if 'test' in self.path:
             id = int(re.findall('[0-9]+', self.path)[0])
+            result_text = regions[id] + '<br><br>'
+            result_text += 'Ближайшие ПСМП: '
+            result_text += '<br><br>Прогноз загруженности БСМП: '
+            result_text += '<br><br>Потенциальные патологии: '
+            result_text += '<br><br>Влияющие факторы: '
             self.wfile.write(bytes('{"message": "Response from id=' + str(id) + '", '
-                                   '"region": "' + regions[id] +'"}', "utf-8"))
+                                   '"region": "' + result_text +'"}', "utf-8"))
 
 
 if __name__ == "__main__":
